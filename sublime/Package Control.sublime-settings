@@ -1,0 +1,36 @@
+{
+	"bootstrapped": true,
+	"in_process_packages":
+	[
+	],
+	"installed_packages":
+	[
+		"Advanced CSV",
+		"AdvancedNewFile",
+		"Anaconda",
+		"BeautifyRuby",
+		"BracketHighlighter",
+		"Dockerfile Syntax Highlighting",
+		"Emmet",
+		"FindKeyConflicts",
+		"Git",
+		"Indent XML",
+		"Jira",
+		"JSON Reindent",
+		"Logstash Syntax Highlighting",
+		"MagicPython",
+		"Origami",
+		"Package Control",
+		"PostgreSQL Syntax Highlighting",
+		"ReadmePlease",
+		"Ruby Slim",
+		"SFTP",
+		"SideBarEnhancements",
+		"SqlBeautifier",
+		"SQLExec",
+		"SublimeREPL",
+		"Terminal",
+		"Theme - Afterglow",
+		"VAlign"
+	]
+}

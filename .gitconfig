@@ -1,0 +1,31 @@
+[user]
+	name = Alec Buckenheimer
+[push]
+	default = simple
+[color]
+	ui = true
+[color "status"]
+	added = green
+	modified = yellow
+	changed = yellow
+[alias]
+	l = log --pretty=format:'%C(yellow)%h %Cgreen%an %Cblue(%ad): %Creset%s' --graph --date=short
+	diff = diff -w
+	co = checkout
+	up = !git stash && git pull --rebase --prune $@ && git submodule update --init --recursive && git stash pop
+	cm = commit -m
+	save = commit -am "WIP"
+	undo = reset HEAD~1 --mixed
+	colln = "!f() { git reset --soft HEAD~$1 && git commit -m $2; }; f"
+	frb = "!git fetch && git stash && git rebase && git stash pop"
+	s = status --branch -s
+	last = log -p --follow -n 1
+	theirs = "!f() { git checkout --theirs -- \"${@:-.}\"; git add -u \"${@:-.}\"; }; f"
+	mine = "!f() { git checkout --ours -- \"${@:-.}\"; git add -u \"${@:-.}\"; }; f"
+#[core]
+#	pager = diff-highlight | diff-so-fancy | less --tabs=1,5 -R
+[color "diff-highlight"]
+	oldNormal = red bold
+	oldHighlight = red bold 52
+	newNormal = green bold
+	newHighlight = green bold 22

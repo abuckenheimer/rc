@@ -1,0 +1,30 @@
+{
+	"auto_complete_commit_on_tab": true,
+	"color_inactive_tabs": true,
+	"color_scheme": "Packages/Theme - Afterglow/Afterglow-twilight.tmTheme",
+	"default_line_ending": "unix",
+	"word_wrap": false,
+	"ensure_newline_at_eof_on_save": true,
+	"folder_no_icon": true,
+	"font_size": 10,
+	"ignored_packages":
+	[
+		"ActionScript",
+		"AppleScript",
+		"ASP",
+		"FindKeyConflicts",
+		"Vintage"
+	],
+	"rulers":
+	[
+		85
+	],
+	"spell_check": true,
+	"status_bar_brighter": true,
+	"tab_size": 4,
+	"tabs_padding_small": true,
+	"tabs_small": true,
+	"theme": "Afterglow.sublime-theme",
+	"translate_tabs_to_spaces": true,
+	"trim_trailing_white_space_on_save": true
+}
