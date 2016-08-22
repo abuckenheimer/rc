@@ -114,10 +114,14 @@ alias KSs="kubectl --namespace=kube-system stop"
 alias KSg="kubectl --namespace=kube-system get services,rc,pods"
 alias KSe="kubectl --namespace=kube-system exec"
 alias KSl="kubectl --namespace=kube-system logs"
+# for using a second docker daemon (used to be a kubernetes thing)
 alias dockerbs="sudo docker -H unix:///var/run/docker-bootstrap.sock"
-alias dt="source /usr/local/devtools/anaconda250/bin/activate root"
+# a more readable netstat
+alias ntst="sudo netstat -tulpn"
 
-# alias etcd_up="docker run -d --rm -p 4001:4001 -p 2379:2379 -v /usr/share/ca-certificates/:/etc/ssl/certs quay.io/coreos/etcd:v2.2.0-alpha.1"
+# get cwd and environment for a specific process
+cwdp () { sudo ls -l "/proc/$1/cwd" ;}
+envp () { sudo cat "/proc/$1/environ" ;}
 
 psg () { ps -ef | grep -v grep | grep "$@" ;}
 F () { find . -type f -name $*;}
