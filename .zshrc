@@ -93,6 +93,7 @@ alias folders="find . -maxdepth 1 -type d -print | xargs du -sk | sort -rn"
 alias S='sudo -E env PATH=$PATH'
 alias T='tail -f'
 
+alias weather='http -p b wttr.in/10018'  # requires httpie
 alias install='sudo yum install -y'
 alias pinstall='S pip install'
 alias docker='S docker'
