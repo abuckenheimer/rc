@@ -96,6 +96,7 @@ alias T='tail -f'
 alias weather='http -p b wttr.in/10018'  # requires httpie
 alias install='sudo yum install -y'
 alias pinstall='S pip install'
+alias pyclean='find . -type d -name __pycache__ -exec rm -rf {} \;'
 alias docker='S docker'
 alias d='docker'
 alias dc='S docker-compose'
