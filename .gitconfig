@@ -9,20 +9,28 @@
 	modified = yellow
 	changed = yellow
 [alias]
-	l = log --pretty=format:'%C(yellow)%h %Cgreen%an %Cblue(%ad): %Creset%s' --graph --date=short
-	diff = diff -w
-	co = checkout
-	nuke = checkout --
-	up = !git stash && git pull --rebase --prune $@ && git submodule update --init --recursive && git stash pop
-	cm = commit -m
-	save = commit -am "WIP"1
-	undo = reset HEAD~1 --mixed
-	colln = "!f() { git reset --soft HEAD~$1 && git commit -m $2; }; f"
-	frb = "!git fetch && git stash && git rebase && git stash pop"
-	s = status --branch -s
-	last = log -p --follow -n 1
-	theirs = "!f() { git checkout --theirs -- \"${@:-.}\"; git add -u \"${@:-.}\"; }; f"
-	mine = "!f() { git checkout --ours -- \"${@:-.}\"; git add -u \"${@:-.}\"; }; f"
+        # every day use
+        s = status --branch -s
+        l = log --pretty=format:'%C(yellow)%h %Cgreen%an %Cblue(%ad): %Creset%s' --graph --date=short
+        co = checkout
+        diff = diff -w
+        up = !git stash && git pull --rebase --prune $@ && git submodule update --init --recursive && git stash pop
+        cm = commit -m
+        # utility
+        # when I forget what I've been working on
+        me = log --pretty=format:'%C(yellow)%h %Cgreen%an %Cblue(%ad): %Creset%s' --graph --date=short --author=abuckenheimer
+        last = log -p --follow -n 1
+        # drop WIP
+        nuke = checkout --
+        # edit last commit
+        undo = reset HEAD~1 --mixed
+        # show the previous version of something
+        prev = !git show $(git log --pretty=format:'%h' --skip ${2:-1} $1 -n 1):$1
+        # collapse n commmits into one, may be better served by rebase -i
+        colln = "!f() { git reset --soft HEAD~$1 && git commit -m $2; }; f"
+        # conflict resolution
+        theirs = "!f() { git checkout --theirs -- \"${@:-.}\"; git add -u \"${@:-.}\"; }; f"
+        mine = "!f() { git checkout --ours -- \"${@:-.}\"; git add -u \"${@:-.}\"; }; f"
 #[core]
 #	pager = diff-highlight | diff-so-fancy | less --tabs=1,5 -R
 [color "diff-highlight"]
