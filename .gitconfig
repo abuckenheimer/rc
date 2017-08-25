@@ -17,6 +17,8 @@
         up = !git stash && git pull --rebase --prune $@ && git submodule update --init --recursive && git stash pop
         cm = commit -m
         # utility
+	# push a branch for the first time
+        pushb = !git push --set-upstream origin $(git rev-parse --abbrev-ref HEAD)
         # when I forget what I've been working on
         me = log --pretty=format:'%C(yellow)%h %Cgreen%an %Cblue(%ad): %Creset%s' --graph --date=short --author=abuckenheimer
         last = log -p --follow -n 1
