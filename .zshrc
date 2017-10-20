@@ -80,6 +80,9 @@ source $ZSH/oh-my-zsh.sh
 # . /usr/lib/anaconda3/lib/python3.4/site-packages/powerline/bindings/zsh/powerline.zsh
 source ~/.environment_dep.sh
 
+# enable fzf
+[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+
 alias zshrc='source ~/.zshrc'
 alias ll='ls -alh'
 alias la='ls -A'
