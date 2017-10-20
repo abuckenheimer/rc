@@ -78,11 +78,18 @@ source $ZSH/oh-my-zsh.sh
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 # uncomment for powerline
 # . /usr/lib/anaconda3/lib/python3.4/site-packages/powerline/bindings/zsh/powerline.zsh
-source ~/.environment_dep.sh
+
+# Other Modules ---------------------------------------------------------------
+# used for setting work  related secrets
+[ -f ~/.environment_dep.sh ] && source ~/.environment_dep.sh
 
 # enable fzf
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
+# used to for some utils and sane python defaults
+export PYTHONSTARTUP=~/.pythonrc.py
+
+# aliases ---------------------------------------------------------------------
 alias zshrc='source ~/.zshrc'
 alias ll='ls -alh'
 alias la='ls -A'
@@ -138,7 +145,7 @@ rmldock (){ docker rm $(docker ps -alq) }
 rmsince (){ docker rm $2 $(docker ps -q --filter=since=$1) }
 rmidangling () { docker rmi $1 $(docker images -f "dangling=true" -q)}
 
-
+# Functions -------------------------------------------------------------------
 extract () {
    if [ -f $1 ] ; then
        case $1 in
@@ -175,4 +182,10 @@ localk () {
         gcr.io/google_containers/hyperkube:v1.0.1 \
         /hyperkube kubelet --containerized --hostname-override="127.0.0.1" --address="0.0.0.0" --api-servers=http://localhost:8080 --config=/etc/kubernetes/manifests && \
     docker run -d --net=host --privileged gcr.io/google_containers/hyperkube:v1.0.1 /hyperkube proxy --master=http://127.0.0.1:8080 --v=2
+}
+
+# AWS -------------------------------------------------------------------------
+# ecr logs you out every now and again, login to a specific region in one step with this
+ecr_login() {
+    $(aws ecr get-login --region ${1:-$AWS_DEFAULT_REGION} | sed 's/-e none//g')
 }
