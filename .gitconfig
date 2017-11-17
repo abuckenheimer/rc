@@ -33,6 +33,8 @@
         # conflict resolution
         theirs = "!f() { git checkout --theirs -- \"${@:-.}\"; git add -u \"${@:-.}\"; }; f"
         mine = "!f() { git checkout --ours -- \"${@:-.}\"; git add -u \"${@:-.}\"; }; f"
+	# cleanup
+	prune_branches = !git branch --merged master | grep -v -E '(master|prod)' | xargs git branch -d
 #[core]
 #	pager = diff-highlight | diff-so-fancy | less --tabs=1,5 -R
 [color "diff-highlight"]
