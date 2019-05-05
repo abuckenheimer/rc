@@ -47,7 +47,6 @@ COMPLETION_WAITING_DOTS="true"
 # Add wisely, as too many plugins slow down shell startup.
 plugins=(git ruby bundler docker docker-compose git-prompt history jira postgres)
 
-
 # export MANPATH="/usr/local/man:$MANPATH"
 
 source $ZSH/oh-my-zsh.sh
@@ -98,10 +97,9 @@ alias ...='cd ../..'
 alias ....='cd ../../..'
 alias clip='xclip -sel clip'
 
-alias diskspace="du -S | sort -n -r |more"
+alias diskspace="du -S | sort -n -r | less"
 alias folders="find . -maxdepth 1 -type d -print | xargs du -sk | sort -rn"
 alias S='sudo -E env PATH=$PATH'
-alias T='tail -f'
 
 alias weather='http -p b wttr.in/10018'  # requires httpie
 alias install='sudo yum install -y'
@@ -111,23 +109,16 @@ alias docker='S docker'
 alias d='docker'
 alias dc='S docker-compose'
 alias systemctl='sudo systemctl'
-alias ipython='ipython --profile=buck'
 alias t2h='tmux2html --bg 30,41,64 -o ~/current_window.html'
 alias mt="multitail"
 
-alias Kip="S iptables -L -t nat"
-alias Kc="kubectl create -f"
-alias Ks="kubectl stop"
-alias Kg="kubectl get services,rc,pods"
-alias Ke="kubectl exec"
-alias Kl="kubectl logs"
-alias KSc="kubectl --namespace=kube-system create -f"
-alias KSs="kubectl --namespace=kube-system stop"
-alias KSg="kubectl --namespace=kube-system get services,rc,pods"
-alias KSe="kubectl --namespace=kube-system exec"
-alias KSl="kubectl --namespace=kube-system logs"
-# for using a second docker daemon (used to be a kubernetes thing)
-alias dockerbs="sudo docker -H unix:///var/run/docker-bootstrap.sock"
+alias k="kubectl"
+alias kag="kubectl get ing,services,deployment,pods --all-namespaces"
+alias kl="kubectl logs"
+alias ks="kubectl --namespace=kube-system"
+alias ksl="kubectl --namespace=kube-system logs"
+
+
 # a more readable netstat
 alias ntst="sudo netstat -tulpn"
 
@@ -139,7 +130,6 @@ psg () { ps -ef | grep -v grep | grep "$@" ;}
 F () { find . -type f -name $*;}
 
 alias inside="docker run -it --rm --entrypoint=/bin/bash"
-stopdock (){ docker stop $(docker ps -a -q) }
 rmdock (){ docker rm $1 $(docker ps -a -q) }
 rmldock (){ docker rm $(docker ps -alq) }
 rmsince (){ docker rm $2 $(docker ps -q --filter=since=$1) }
@@ -167,22 +157,6 @@ extract () {
    fi
 }
 
-localk () {
-    docker run --net=host -d gcr.io/google_containers/etcd:2.0.12 /usr/local/bin/etcd --addr=127.0.0.1:4001 --bind-addr=0.0.0.0:4001 --data-dir=/var/etcd/data && \
-    docker run \
-        --volume=/:/rootfs:ro \
-        --volume=/sys:/sys:ro \
-        --volume=/dev:/dev \
-        --volume=/var/lib/docker/:/var/lib/docker:ro \
-        --volume=/var/lib/kubelet/:/var/lib/kubelet:rw \
-        --volume=/var/run:/var/run:rw \
-        --net=host \
-        --privileged=true \
-        -d \
-        gcr.io/google_containers/hyperkube:v1.0.1 \
-        /hyperkube kubelet --containerized --hostname-override="127.0.0.1" --address="0.0.0.0" --api-servers=http://localhost:8080 --config=/etc/kubernetes/manifests && \
-    docker run -d --net=host --privileged gcr.io/google_containers/hyperkube:v1.0.1 /hyperkube proxy --master=http://127.0.0.1:8080 --v=2
-}
 
 # AWS -------------------------------------------------------------------------
 # ecr logs you out every now and again, login to a specific region in one step with this
