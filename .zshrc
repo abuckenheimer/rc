@@ -114,9 +114,46 @@ alias mt="multitail"
 
 alias k="kubectl"
 alias kag="kubectl get ing,services,deployment,pods --all-namespaces"
-alias kl="kubectl logs"
 alias ks="kubectl --namespace=kube-system"
-alias ksl="kubectl --namespace=kube-system logs"
+
+kl() {
+    if [ -z $1 ]
+    then 
+        $(kubectl get pods --all-namespaces | fzf --header-lines=1 | awk '{print "kubectl logs -n " $1 " " $2}')
+    else
+        local awk_cmd="{print \"kubectl logs -n ${1} \" \$1}"
+        $(kubectl get pods -n $1 | fzf --header-lines=1 | awk $awk_cmd)
+    fi
+}
+
+kd() {
+    if [ -z $1 ]
+    then 
+        $(kubectl get pods --all-namespaces | fzf --header-lines=1 | awk '{print "kubectl describe pod -n " $1 " " $2}')
+    else
+        local awk_cmd="{print \"kubectl describe pod -n ${1} \" \$1}"
+        $(kubectl get pods -n $1 | fzf --header-lines=1 | awk $awk_cmd)
+    fi
+}
+
+kash() {
+    kubectl run remote-shell --image='abuckenheimer/py-eks:latest' -i -t --command sh || kubectl attach $(kubectl get pods -l 'run=remote-shell' -o 'jsonpath={.items[0].metadata.name}') -c remote-shell -i -t
+}
+
+hl() {
+    kubectl $@ -l "app.kubernetes.io/instance=$(helm last)" --all-namespaces
+
+}
+
+hdl() {
+    helm delete --purge $(helm last)
+}
+
+krb() {
+    kubectl get rolebindings,clusterrolebindings \
+        --all-namespaces  \
+        -o custom-columns='KIND:kind,NAMESPACE:metadata.namespace,NAME:metadata.name,SERVICE_ACCOUNTS:subjects[?(@.kind=="ServiceAccount")].name'
+}
 
 
 # a more readable netstat
