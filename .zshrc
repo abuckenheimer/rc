@@ -136,7 +136,7 @@ alias j='just'
 # alias alias kubectl="/c/Program\ Files/Docker/Docker/resources/bin/kubectl.exe"
 [ -f /c/Users/Buck/.kube/config ] && export KUBECONFIG="/c/Users/Buck/.kube/config"
 alias k="kubectl"
-alias kag="kubectl get ing,services,deployment,pods --all-namespaces"
+alias kag="kubectl get ing,services,deployment,pods --all-namespaces -l '!workflows.argoproj.io/workflow'"
 # alias ks="kubectl --namespace=kube-system"
 
 kapi() {
@@ -156,7 +156,7 @@ ks() {
     fi
     if [ -z $2 ]
     then
-        local line=$(kubectl get $KSRC --all-namespaces --sort-by '{metadata.creationTimestamp}' | awk 'NR == 1; NR > 1 {print $0 | "tac"}' | sk --header-lines=1 --preview "kubectl describe $KSRC -n {1} {2}")
+        local line=$(kubectl get $KSRC --all-namespaces --sort-by '{metadata.creationTimestamp}' | awk 'NR == 1; NR > 1 {print $0 | "tac"}' | sk --header-lines=1 --preview "kubectl describe $KSRC -n {1} {2} | tail -n 65")
         export KNS=$(echo $line | awk '{print $1}')
         export KOBJ=$(echo $line | awk '{print $2}')
     else
@@ -192,6 +192,10 @@ kg() {
     kubectl get $KSRC -n $KNS $KOBJ -o yaml
 }
 
+ksnode() {
+    kubectl get nodes -L node.kubernetes.io/instance-type | sk -m --header-lines=1 --preview 'kubectl get pods --all-namespaces -o wide --field-selector spec.nodeName={1}' | awk '{print $1}'
+}
+
 kcc() {
     local context=$(kubectl config get-contexts | sk --header-lines=1 | awk '{print $1}')
     if [ "${context}" != '*' ]
@@ -217,7 +221,17 @@ kpf() {
     then
       port=$(echo $port | sk)
     fi
-    kubectl port-forward svc/$KOBJ $port:$port -n $KNS
+    kubectl port-forward svc/$KOBJ ${EXTERNAL_PORT:-$port}:$port -n $KNS
+}
+
+kpfp() {
+    ks pod $1
+    local port=$(kubectl get pod $KOBJ -n $KNS -o jsonpath='{.spec.containers[*].ports[*].containerPort}' | tr " " "\n")
+    if [ $(echo $port | wc -l) -ne 1 ]
+    then
+      port=$(echo $port | sk)
+    fi
+    kubectl port-forward pod/$KOBJ ${EXTERNAL_PORT:-$port}:$port -n $KNS
 }
 
 kash() {
@@ -239,44 +253,154 @@ krb() {
         -o custom-columns='KIND:kind,NAMESPACE:metadata.namespace,NAME:metadata.name,SERVICE_ACCOUNTS:subjects[?(@.kind=="ServiceAccount")].name'
 }
 
+aswitch() {
+  local ARGO_NAMESPACE=${1:?expected ARGO_NAMESPACE to be set}
+  shift 1
+  local COMMAND=${1:?expected at least one command to be set}
+  shift 1
+  case $COMMAND in
+    selectg)
+      argo list -n ${ARGO_NAMESPACE} $@ \
+        | sk --header-lines=1 -m --preview "argo get {1} -n ${ARGO_NAMESPACE}" \
+        | awk '{print $1}'
+      ;;
+
+    selectl)
+      argo list -n ${ARGO_NAMESPACE} $@ \
+        | sk --header-lines=1 -m --preview "argo logs --no-color --tail 40 {1} -n ${ARGO_NAMESPACE}" \
+        | awk '{print $1}'
+      ;;
+
+    get)
+      argo get -n ${ARGO_NAMESPACE} $(aswitch ${ARGO_NAMESPACE} selectg) $@
+      ;;
+
+    logs)
+      argo logs --no-color -n ${ARGO_NAMESPACE} $(aswitch ${ARGO_NAMESPACE} selectl) $@
+    ;;
+
+    watch)
+      argo watch \
+        -n ${ARGO_NAMESPACE} \
+        $(
+          aswitch ${ARGO_NAMESPACE} selectg \
+          -l 'workflows.argoproj.io/phase in (Pending, Running)'
+        ) \
+        $@
+    ;;
+
+    stop)
+      parallel -n 4 "argo stop {} -n ${ARGO_NAMESPACE} $@" \
+        ::: $(
+          aswitch ${ARGO_NAMESPACE} selectg \
+          -l 'workflows.argoproj.io/phase in (Pending, Running)'
+        )
+    ;;
+
+    delete)
+      parallel -n 4 "argo delete {} -n ${ARGO_NAMESPACE} $@" \
+        ::: $(aswitch ${ARGO_NAMESPACE} selectg)
+    ;;
+
+    trim)
+      local ALABLE="${1}"
+      local TCUTOFF="${2:-30m}"
+      local containers=$(
+        argo list -l "workflows.argoproj.io/phase=$ALABLE" --older $TCUTOFF -n ${ARGO_NAMESPACE} \
+          | tail -n +2 \
+          | awk '{print $1}'
+      )
+      while [ ! -z "$containers" ]
+      do
+        parallel -n 4 "argo delete {} -n ${ARGO_NAMESPACE}" ::: $(echo $containers)
+        local containers=$(
+          argo list -l "workflows.argoproj.io/phase=$ALABLE" --older $TCUTOFF -n ${ARGO_NAMESPACE} \
+            | tail -n +2 \
+            | awk '{print $1}'
+          )
+      done
+    ;;
+
+    *)
+    argo -n ${ARGO_NAMESPACE} $COMMAND $@
+    ;;
+  esac
+}
+
+ac() {
+  aswitch carnegie $@
+}
+
 ae() {
-  argo -n argo-events $@
+  aswitch argo-events $@
 }
 
-atrims() {
-  local ALABLE="${1:-Succeeded}"
-  local TCUTOFF="${2:-30m}"
-  local containers=$(argo list -l "workflows.argoproj.io/phase=$ALABLE" --older $TCUTOFF -n argo-events | tail -n +2 | awk '{print $1}')
-  while [ ! -z "$containers" ]
-  do
-    parallel -n 4 'argo delete {} -n argo-events' ::: $(echo $containers)
-    local containers=$(argo list -l "workflows.argoproj.io/phase=$ALABLE" --older $TCUTOFF -n argo-events | tail -n +2 | awk '{print $1}')
-  done
+pgconnect() {
+  local conn=$(egrep -v '^#' ~/.pgpass | sk)
+  local host=$(echo $conn | cut -d: -f1)
+  local port=$(echo $conn | cut -d: -f2)
+  local db=$(echo $conn | cut -d: -f3)
+  local user=$(echo $conn | cut -d: -f4)
+  [ "${port}" = '*' ] && local port='5432'
+  [ "${user}" = '*' ] && local user='postgres'
+  [ "${db}" = '*' ] && local db=$(psql -h $host -p $port -U $user postgres -l | sk --header-lines 3 | awk '{print $1}')
+  if [ "${1}" = "--dry-run" ]
+  then
+    echo psql -h $host -p $port -U $user $db
+  else
+    psql -h $host -p $port -U $user $db
+  fi
 }
 
-awatch() {
-  argo watch $(argo list -l 'workflows.argoproj.io/phase in (Pending, Running)' $@ | sk --header-lines=1 | awk '{print $1}') $@
+pguri() {
+  local conn=$(egrep -v '^#' ~/.pgpass | sk)
+  local host=$(echo $conn | cut -d: -f1)
+  local port=$(echo $conn | cut -d: -f2)
+  local db=$(echo $conn | cut -d: -f3)
+  local user=$(echo $conn | cut -d: -f4)
+  local pass=$(echo $conn | cut -d: -f5)
+  [ "${port}" = '*' ] && local port='5432'
+  [ "${user}" = '*' ] && local user='postgres'
+  [ "${db}" = '*' ] && local db=$(psql -h $host -p $port -U $user postgres -l | sk --header-lines 3 | awk '{print $1}')
+
+  echo "postgres://${user}:${pass}@${host}:${port}/${db}"
 }
 
-aewatch() {
-  argo watch $(argo list -l 'workflows.argoproj.io/phase in (Pending, Running)' -n argo-events | sk --header-lines=1 | awk '{print $1}') -n argo-events
-}
+# atrims() {
+#   local ALABLE="${1}"
+#   local TCUTOFF="${2:-30m}"
+#   local NAMESPACE="${2:-carnegie}"
+#   local containers=$(argo list -l "workflows.argoproj.io/phase=$ALABLE" --older $TCUTOFF -n argo-events | tail -n +2 | awk '{print $1}')
+#   while [ ! -z "$containers" ]
+#   do
+#     parallel -n 4 'argo delete {} -n argo-events' ::: $(echo $containers)
+#     local containers=$(argo list -l "workflows.argoproj.io/phase=$ALABLE" --older $TCUTOFF -n argo-events | tail -n +2 | awk '{print $1}')
+#   done
+# }
 
-alogs() {
-  argo logs --no-color $(argo list $@ | sk --header-lines=1 --preview "argo logs --no-color --tail 40 {1} $@" | awk '{print $1}') $@
-}
+# awatch() {
+#   argo watch $(argo list -l 'workflows.argoproj.io/phase in (Pending, Running)' $@ | sk --header-lines=1 | awk '{print $1}') $@
+# }
 
-aelogs() {
-  argo logs --no-color $(argo list -n argo-events | sk --header-lines=1 --preview "argo logs --no-color -n 40 {1} -n argo-events" | awk '{print $1}') -n argo-events $@
-}
+# aewatch() {
+#   argo watch $(argo list -l 'workflows.argoproj.io/phase in (Pending, Running)' -n argo-events | sk --header-lines=1 | awk '{print $1}') -n argo-events
+# }
 
-astop() {
-  argo stop $(argo list -l 'workflows.argoproj.io/phase in (Pending, Running)' $@ | sk --header-lines=1 -m | awk '{print $1}') $@
-}
+# alogs() {
+#   argo logs --no-color $(argo list $@ | sk --header-lines=1 --preview "argo logs --no-color --tail 40 {1} $@" | awk '{print $1}') $@
+# }
 
-aestop() {
-  argo stop $(argo list -l 'workflows.argoproj.io/phase in (Pending, Running)' -n argo-events | sk --header-lines=1 -m | awk '{print $1}') -n argo-events
-}
+# aelogs() {
+#   argo logs --no-color $(argo list -n argo-events | sk --header-lines=1 --preview "argo logs --no-color -n 40 {1} -n argo-events" | awk '{print $1}') -n argo-events $@
+# }
+
+# astop() {
+#   argo stop $(argo list -l 'workflows.argoproj.io/phase in (Pending, Running)' $@ | sk --header-lines=1 -m | awk '{print $1}') $@
+# }
+
+# aestop() {
+#   argo stop $(argo list -l 'workflows.argoproj.io/phase in (Pending, Running)' -n argo-events | sk --header-lines=1 -m | awk '{print $1}') -n argo-events
+# }
 
 
 dimage() {
@@ -290,9 +414,9 @@ dlogs() {
     fi
 }
 
-afailed() {
-    argo list -l 'workflows.argoproj.io/phase=Failed' | sk --header-lines=1 --preview "argo logs {1}" | awk '{print $1}'
-}
+# afailed() {
+#     argo list -l 'workflows.argoproj.io/phase=Failed' | sk --header-lines=1 --preview "argo logs {1}" | awk '{print $1}'
+# }
 
 
 # a more readable netstat
@@ -302,20 +426,26 @@ alias ntst="sudo netstat -tulpn"
 cwdp () { sudo ls -l "/proc/$1/cwd" ;}
 envp () { sudo cat "/proc/$1/environ" ;}
 
+F () { find . -type f -name $*;}
 psg () { ps -ef | grep -v 'sk --header-lines=1' | sk --header-lines=1 $@ | awk '{print $2}' }
 psk () { kill $(ps -ef | sk --header-lines=1 $@ | awk '{print $2}') }
-pydump() { S py-spy record -d 20 -o dump.svg --pid $(psg -q "python") }
 pytop() { S py-spy top --pid $(psg -q "python") }
-F () { find . -type f -name $*;}
+pydump() {S py-spy record -o dump.svg --pid $(psg -q "python")}
 
 alias inside="docker run -it --rm --entrypoint=/bin/bash"
-rmdock () { docker rm $(docker ps -a | sk --header-lines=1 -m | awk '{print $1}')}
-# rmdock (){ docker rm $1 $(docker ps -a -q) }
-rmldock (){ docker rm $(docker ps -alq) }
+dselect () { docker ps -a $@ | sk --header-lines=1 -m | awk '{print $1}' }
+diselect () { docker images $@ | sk --header-lines=1 -m | awk '{print $1":"$2}' }
+rmdock () {
+    case $1 in
+      "-a")  docker rm $(docker ps -a -q)    ;;
+      "-af") docker rm -f $(docker ps -a -q) ;;
+      *)     docker rm $@ $(dselect)         ;;
+    esac
+}
 rmsince (){ docker rm $2 $(docker ps -q --filter=since=$1) }
 rmidangling () { docker rmi $1 $(docker images -f "dangling=true" -q)}
 # docker images --format "{{.Repository}}:{{.Tag}}"
-rmidock () { docker rmi $(docker images | sk --header-lines=1 -m | awk '{print $1":"$2}')}
+rmidock () { docker rmi $(diselect) }
 
 # Functions -------------------------------------------------------------------
 extract () {
@@ -361,7 +491,7 @@ ec2i() {
     curl "https://ec2.shop?region=${1:-us-east-1}" 2> /dev/null | sk --header-lines=1 -m
 }
 
-aws_assume() {
+aws_assume_env() {
     if [ -n "$creds" ]; then
         unset creds
         unset AWS_ACCESS_KEY_ID
@@ -374,7 +504,7 @@ aws_assume() {
     export AWS_SESSION_TOKEN=$(echo $creds | jq '.Credentials.SessionToken')
 }
 
-aws_profile() {
+awp_env() {
     if [ "$1" = "-u" ]; then
         unset AWS_ACCESS_KEY_ID
         unset AWS_SECRET_ACCESS_KEY
@@ -392,6 +522,20 @@ aws_profile() {
     export AWS_SECRET_ACCESS_KEY=$(echo $acreds | tail -n +3 | head -n 1)
 }
 
+awp() {
+    if [ "$1" = "-u" ]; then
+        unset AWS_PROFILE
+        return
+    fi
+    if [ -n "$1" ]; then
+      local profile=$(sed -E 's/\[(.*)\]/\1/' < ~/.aws/config | awk '{print $2}' | grep $1)
+    fi
+    if [ ! -n "$profile" ]; then
+      local profile=$(grep -E '^\[profile ' ~/.aws/config | sed -E 's/\[(.*)\]/\1/' | awk '{print $2}' | sk)
+    fi
+    export AWS_PROFILE=$profile
+}
+
 get_topic() {
     ~/go/bin/topicctl --cluster-config ${1:-cluster.yml} get topics --no-spinner 2>&1 \
       | sk --header-lines=5 --preview "~/go/bin/topicctl get offsets {2} --cluster-config ${1:-cluster.yml} --no-spinner 2>&1" \
@@ -401,3 +545,5 @@ get_topic() {
 # auto completes --------------------------------------------------------------
 autoload -U +X bashcompinit && bashcompinit
 complete -o nospace -C /usr/local/bin/vault vault
+[ -f ~/.k8s_completion.zsh ] && source ~/.k8s_completion.zsh
+[ -f ~/.krew/bin ] && export PATH=~/.krew/bin:${PATH}
