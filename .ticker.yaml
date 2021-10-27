@@ -1,0 +1,23 @@
+# ~/.ticker.yaml
+# https://github.com/achannarasappa/ticker
+show-tags: true
+show-fundamentals: true
+show-separator: true
+interval: 10
+watchlist:
+  - GME
+  - BTC-USD
+  - ETH-USD
+lots:
+  - symbol: "AMZN"
+    quantity: 5.0
+    unit_cost: 1990.2
+  - symbol: "GOOGL"
+    quantity: 16
+    unit_cost: 1101.36
+  - symbol: "IWV"
+    quantity: 71.0
+    unit_cost: 140.88
+  - symbol: "SPY"
+    quantity: 41.0
+    unit_cost: 245.87

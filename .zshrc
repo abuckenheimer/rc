@@ -45,7 +45,7 @@ COMPLETION_WAITING_DOTS="true"
 # Custom plugins may be added to ~/.oh-my-zsh/custom/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(git ruby bundler docker docker-compose git-prompt history jira postgres)
+plugins=(git bundler docker docker-compose history postgres)
 
 # export MANPATH="/usr/local/man:$MANPATH"
 
@@ -78,12 +78,19 @@ source $ZSH/oh-my-zsh.sh
 # uncomment for powerline
 # . /usr/lib/anaconda3/lib/python3.4/site-packages/powerline/bindings/zsh/powerline.zsh
 
+# https://github.com/starship/starship
+eval "$(starship init zsh)"
+export STARSHIP_CONFIG="/c/dev/rc/starship.toml"
+
 # Other Modules ---------------------------------------------------------------
 # used for setting work related secrets
 [ -f ~/.environment_dep.sh ] && source ~/.environment_dep.sh
 
 # enable fzf
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+
+# enable mcfly
+[ -f ~/.config/mcfly/init.zsh ] && source ~/.config/mcfly/init.zsh
 
 # used to for some utils and sane python defaults
 [ -f ~/.pythonrc.py ] && export PYTHONSTARTUP=~/.pythonrc.py
@@ -447,6 +454,7 @@ rmidangling () { docker rmi $1 $(docker images -f "dangling=true" -q)}
 # docker images --format "{{.Repository}}:{{.Tag}}"
 rmidock () { docker rmi $(diselect) }
 
+
 # Functions -------------------------------------------------------------------
 extract () {
    if [ -f $1 ] ; then
@@ -534,6 +542,72 @@ awp() {
       local profile=$(grep -E '^\[profile ' ~/.aws/config | sed -E 's/\[(.*)\]/\1/' | awk '{print $2}' | sk)
     fi
     export AWS_PROFILE=$profile
+}
+
+gwp() {
+    gcloud config set project $(gcloud projects list | sk --header-lines 1 | awk '{print $1}')
+}
+
+g_iam_roles() {
+    gcloud iam roles list --format json | jq '.[].name' -r | sk --preview 'gcloud iam roles describe {}' -m
+}
+
+bqtbl() {
+    bq query --nouse_legacy_sql  --format=json '
+    DECLARE datasets STRING;
+    SET datasets = (
+      SELECT ARRAY_TO_STRING(
+        ARRAY_AGG(
+            FORMAT("""SELECT table_catalog || "." || table_schema || "." || table_name as table, creation_time FROM `%s.%s.INFORMATION_SCHEMA.TABLES`""", catalog_name, schema_name)
+          ), "\nUNION ALL\n"
+        ) FROM INFORMATION_SCHEMA.SCHEMATA
+    );
+
+    EXECUTE IMMEDIATE datasets;' | jq -r '.[][].table' | sk -m --preview 'bqddl {}'
+}
+
+bquri() {
+    local PROJECT=$(gcloud projects list | sk --header-lines 1 | awk '{print $1}')
+    local DATASET=$(bq --project_id ${PROJECT} ls -n 1000 | sk --header-lines 2 | awk '{print $1}')
+    bq --project_id ${PROJECT} ls -n 1000 ${DATASET} | sk --header-lines 2 -m | \
+        awk -v p=${PROJECT} -v d=${DATASET} '{print "bq:/" p "/" d "/" $1 }'
+}
+
+bqhead() {
+    local DATASET=$(bq ls | sk --header-lines 2 | awk '{print $1}')
+    local TABLE=$(bq ls ${DATASET} | sk --header-lines 2 | awk '{print $1}')
+    bq head ${DATASET}.${TABLE}
+}
+
+bqddl() {
+    if [ ! -n "$1" ]; then
+        local PROJECT=$(gcloud projects list | sk --header-lines 1 | awk '{print $1}')
+        local DATASET=$(bq --project_id ${PROJECT} ls | sk --header-lines 2 | awk '{print $1}')
+        local TABLE=$(bq --project_id ${PROJECT} ls ${DATASET} | sk --header-lines 2 | awk '{print $1}')
+    else
+        local PROJECT=$(echo ${1} | cut -s -d . -f1)
+        if [ ! -n "$PROJECT" ]; then
+            local PROJECT=${1}
+            local DATASET=$(bq --project_id ${PROJECT} ls | sk --header-lines 2 | awk '{print $1}')
+            local TABLE=$(bq --project_id ${PROJECT} ls ${DATASET} | sk --header-lines 2 | awk '{print $1}')
+        else
+            local DATASET=$(echo ${1} | cut -s -d . -f2)
+            local TABLE=$(echo ${1} | cut -s -d . -f3)
+            if [ ! -n "$TABLE" ]; then
+              local TABLE=$(bq --project_id ${PROJECT} ls ${DATASET} | sk --header-lines 2 | awk '{print $1}')
+            fi
+        fi
+    fi
+    bq --project_id ${PROJECT} query --format=sparse --nouse_legacy_sql "select ddl from ${DATASET}.INFORMATION_SCHEMA.TABLES where table_name = '${TABLE}'"
+}
+
+
+bqcount() {
+    local DATASET=$(bq ls | sk --header-lines 2 | awk '{print $1}')
+    for TABLE in $(bq ls ${DATASET} | sk -m --header-lines 2 | awk '{print $1}')
+    do
+      bq query --format=sparse --nouse_legacy_sql "select count(*) from ${DATASET}.${TABLE}"
+    done
 }
 
 get_topic() {

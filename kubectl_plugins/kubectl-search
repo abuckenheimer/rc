@@ -1,0 +1,12 @@
+#!/bin/bash
+
+kubectl-search() {
+    if [ "$1" = "api-resources" -o "$1" = "api-resource" -o "$1" = "api" ]
+    then
+        kubectl api-resources "${all_args[@]:2}" | sk --header-lines=1 | awk '{print $1}'
+    else
+        kubectl get $1 "${all_args[@]:2}" | sk --header-lines=1 | awk '{print $1}'
+    fi
+}
+
+kubectl-search $@

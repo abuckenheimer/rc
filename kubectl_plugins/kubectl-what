@@ -1,0 +1,22 @@
+#!/bin/bash
+
+kubectl-what() {
+    if [ -z $1 ]
+    then
+        local KSRC=$(kubectl-search api-resources)
+    else
+        local KSRC=$1
+    fi
+    if [ -z $2 ]
+    then
+        local line=$(kubectl get $KSRC --all-namespaces | sk --header-lines=1 --preview "kubectl describe $KSRC -n {1} {2}")
+        local KNS=$(echo $line | awk '{print $1}')
+        local KOBJ=$(echo $line | awk '{print $2}')
+    else
+        local KNS=$2
+        local KOBJ=$(kubectl get $KSRC -n $KNS | sk --header-lines=1 | awk '{print $2}')
+    fi
+    echo $KNS "$KSRC/$KOBJ"
+}
+
+kubectl-what $@
