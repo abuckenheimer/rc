@@ -4,5 +4,16 @@ disabled = false
 [docker_context]
 disabled = true
 
+[package]
+disabled = true
+
+# [kubernetes]
+# disabled = false
+
 [gcloud]
 format = '[/ $project(\($region\))]($style)'
+
+[custom.bumpversion]
+command = "grep 'current_version =' .bumpversion.cfg | cut -d'=' -f2 | tr -d '[:space:]'"
+detect_files = ['.bumpversion.cfg'] # can specify filters but wildcards are not supported
+format = ' 📦 [v$output]($style)'

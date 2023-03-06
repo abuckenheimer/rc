@@ -5,6 +5,11 @@
 # enable fzf
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
+# some things to consider
+# https://medium.com/mkdir-awesome/the-ultimate-guide-to-modularizing-bash-script-code-f4a4d53000c2
+# https://medium.com/mkdir-awesome/a-shell-script-starter-for-small-to-large-projects-d9996f0cce83
+# https://github.com/ko1nksm/getoptions
+
 # used to for some utils and sane python defaults
 export PYTHONSTARTUP=~/.pythonrc.py
 
